@@ -2,11 +2,21 @@ const cryptoContainer = document.getElementById('crypto-container');
 
 async function fetchCrypto() {
     try {
-        // Veriyi çekiyoruz
-        const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false');
+        // API limitine takılmamak için her ihtimale karşı sorguyu optimize ettik
+        const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false', {
+            method: 'GET',
+            headers: {
+                'accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`API Hatası: ${response.status}`);
+        }
+
         const data = await response.json();
         
-        cryptoContainer.innerHTML = ''; // Eski verileri temizle
+        cryptoContainer.innerHTML = ''; 
 
         data.forEach(coin => {
             const isUp = coin.price_change_percentage_24h > 0;
@@ -24,14 +34,19 @@ async function fetchCrypto() {
             `;
             cryptoContainer.innerHTML += card;
         });
-        console.log("Veriler güncellendi: " + new Date().toLocaleTimeString());
+        console.log("Güncellendi: " + new Date().toLocaleTimeString());
     } catch (error) {
-        console.error("Hata:", error);
+        console.error("Hata detayı:", error);
+        // Eğer hata verirse ekranda eski veri kalsın ama kullanıcıya ufak bir not gösterelim
+        if (cryptoContainer.innerHTML.includes('Veriler yükleniyor')) {
+            cryptoContainer.innerHTML = '<p style="color: #fb7185;">Şu an veri alınamıyor. API limiti dolmuş olabilir, lütfen birkaç dakika sonra tekrar deneyin.</p>';
+        }
     }
 }
 
-// Sayfa açılır açılmaz çalıştır
+// İlk açılışta çalıştır
 fetchCrypto();
 
-// Her 5 saniyede bir arka planda veriyi yenile (Refresh istemiyorsan bunu kullan)
-setInterval(fetchCrypto, 5000);
+// API limitine takılmamak için süreyi 5 saniyeden 30 saniyeye çıkarıyoruz.
+// Çünkü çok sık istek atarsan CoinGecko seni tamamen engelleyebilir.
+setInterval(fetchCrypto, 30000);
