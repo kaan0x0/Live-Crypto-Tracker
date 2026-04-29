@@ -1,52 +1,42 @@
 const cryptoContainer = document.getElementById('crypto-container');
 
+// Bu API daha hızlı ve limitleri daha geniş
 async function fetchCrypto() {
     try {
-        // API limitine takılmamak için her ihtimale karşı sorguyu optimize ettik
-        const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=6&page=1&sparkline=false', {
-            method: 'GET',
-            headers: {
-                'accept': 'application/json'
-            }
-        });
+        const response = await fetch('https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BTC,ETH,BNB,SOL,ARB,TIA&tsyms=USD');
+        const result = await response.json();
+        const data = result.RAW;
 
-        if (!response.ok) {
-            throw new Error(`API Hatası: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
         cryptoContainer.innerHTML = ''; 
 
-        data.forEach(coin => {
-            const isUp = coin.price_change_percentage_24h > 0;
+        // Gelen veriyi döngüye sokuyoruz
+        for (const coin in data) {
+            const coinData = data[coin].USD;
+            const isUp = coinData.CHANGEPCT24HOUR > 0;
+            
             const card = `
                 <div class="card">
                     <div class="coin-info">
-                        <img src="${coin.image}" alt="${coin.name}" width="30">
-                        <h3>${coin.name}</h3>
+                        <img src="https://www.cryptocompare.com${coinData.IMAGEURL}" alt="${coin}" width="35">
+                        <h3>${coin}</h3>
                     </div>
-                    <div class="price">$${coin.current_price.toLocaleString()}</div>
+                    <div class="price">$${coinData.PRICE.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
                     <div class="change ${isUp ? 'up' : 'down'}">
-                        ${isUp ? '▲' : '▼'} %${coin.price_change_percentage_24h.toFixed(2)}
+                        ${isUp ? '▲' : '▼'} %${coinData.CHANGEPCT24HOUR.toFixed(2)}
                     </div>
                 </div>
             `;
             cryptoContainer.innerHTML += card;
-        });
-        console.log("Güncellendi: " + new Date().toLocaleTimeString());
-    } catch (error) {
-        console.error("Hata detayı:", error);
-        // Eğer hata verirse ekranda eski veri kalsın ama kullanıcıya ufak bir not gösterelim
-        if (cryptoContainer.innerHTML.includes('Veriler yükleniyor')) {
-            cryptoContainer.innerHTML = '<p style="color: #fb7185;">Şu an veri alınamıyor. API limiti dolmuş olabilir, lütfen birkaç dakika sonra tekrar deneyin.</p>';
         }
+        console.log("Veri çekildi: " + new Date().toLocaleTimeString());
+    } catch (error) {
+        console.error("Hata:", error);
+        cryptoContainer.innerHTML = '<p>Bağlantı hatası, lütfen sayfayı yenileyin.</p>';
     }
 }
 
-// İlk açılışta çalıştır
+// İlk yükleme
 fetchCrypto();
 
-// API limitine takılmamak için süreyi 5 saniyeden 30 saniyeye çıkarıyoruz.
-// Çünkü çok sık istek atarsan CoinGecko seni tamamen engelleyebilir.
-setInterval(fetchCrypto, 30000);
+// 10 saniyede bir güncelle (Bu API için 10 saniye çok güvenli)
+setInterval(fetchCrypto, 10000);
