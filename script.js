@@ -1,15 +1,21 @@
 const cryptoContainer = document.getElementById('crypto-container');
 
-// Bu API daha hızlı ve limitleri daha geniş
 async function fetchCrypto() {
     try {
-        const response = await fetch('https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BTC,ETH,BNB,SOL,ARB,TIA&tsyms=USD');
+        // Cache sorununu aşmak için URL sonuna her seferinde farklı bir sayı ekliyoruz (?t=...)
+        const timestamp = new Date().getTime();
+        const url = `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BTC,ETH,BNB,SOL,ARB,TIA&tsyms=USD&_=${timestamp}`;
+        
+        const response = await fetch(url);
         const result = await response.json();
-        const data = result.RAW;
 
+        if (result.Response === "Error") {
+            throw new Error(result.Message);
+        }
+
+        const data = result.RAW;
         cryptoContainer.innerHTML = ''; 
 
-        // Gelen veriyi döngüye sokuyoruz
         for (const coin in data) {
             const coinData = data[coin].USD;
             const isUp = coinData.CHANGEPCT24HOUR > 0;
@@ -28,15 +34,19 @@ async function fetchCrypto() {
             `;
             cryptoContainer.innerHTML += card;
         }
-        console.log("Veri çekildi: " + new Date().toLocaleTimeString());
+        console.log("Veriler başarıyla yenilendi: " + new Date().toLocaleTimeString());
     } catch (error) {
-        console.error("Hata:", error);
-        cryptoContainer.innerHTML = '<p>Bağlantı hatası, lütfen sayfayı yenileyin.</p>';
+        console.error("Hata oluştu:", error);
+        // Hata alsa bile kutuları tamamen silme, altına ufak bir not düş
+        const errorNote = document.createElement('p');
+        errorNote.style.color = '#fb7185';
+        errorNote.innerText = "Yenileme hatası, sistem tekrar deniyor...";
+        cryptoContainer.appendChild(errorNote);
     }
 }
 
-// İlk yükleme
+// Sayfa ilk açıldığında çalıştır
 fetchCrypto();
 
-// 10 saniyede bir güncelle (Bu API için 10 saniye çok güvenli)
-setInterval(fetchCrypto, 10000);
+// Her 15 saniyede bir güncelle (Çok daha güvenli bir süre)
+setInterval(fetchCrypto, 15000);
